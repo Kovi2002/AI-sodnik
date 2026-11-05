@@ -13,6 +13,12 @@
   --focus: #1f5fd1;
   --radius: 10px;
 
+  /* The "desk" around the sheet on wide screens: ruled record paper with a little grain. */
+  --desk: #e4dfd5;
+  --rule: rgba(70, 55, 40, 0.09);
+  --margin-rule: rgba(178, 58, 30, 0.35);
+  --sheet-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 30px 70px -30px rgba(60, 45, 30, 0.35);
+
   --font-body: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-serif), Georgia, "Times New Roman", serif;
   --font-code: var(--font-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
@@ -34,6 +40,10 @@
     --on-ink: #131315;
     --danger: #ff8a7a;
     --focus: #8db4ff;
+    --desk: #241a15;
+    --rule: rgba(240, 122, 92, 0.1);
+    --margin-rule: rgba(240, 122, 92, 0.4);
+    --sheet-shadow: 0 0 0 1px #2c2622, 0 30px 80px -20px rgba(0, 0, 0, 0.8);
     color-scheme: dark;
   }
 }
@@ -92,12 +102,44 @@ a {
 /* ---------- Shell ---------- */
 
 .shell {
+  position: relative;
   max-width: 600px;
   min-height: 100dvh;
   margin: 0 auto;
   padding: 0 16px;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
+}
+
+@media (min-width: 720px) {
+  body {
+    background-color: var(--desk);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .4 0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      repeating-linear-gradient(to bottom, transparent 0 31px, var(--rule) 31px 32px);
+    background-attachment: fixed;
+  }
+
+  .shell {
+    max-width: 680px;
+    padding: 0 56px;
+    margin: 40px auto;
+    min-height: calc(100dvh - 80px);
+    border-radius: 3px;
+    box-shadow: var(--sheet-shadow);
+  }
+
+  /* Red margin line, as on an official form. */
+  .shell::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 32px;
+    width: 1px;
+    background: var(--margin-rule);
+  }
 }
 
 .masthead {
