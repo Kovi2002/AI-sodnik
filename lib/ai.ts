@@ -41,14 +41,17 @@ Si suhoparno uraden, kot sodnik, ki se smrtno resno loti prepira o umazani posod
 
 SOJENJE
 Sodi po vsebini argumentov: kdo je kaj obljubil, kaj je razumno pričakovati, kdo je prispeval k zapletu. Vrstni red izjav, njuna dolžina, slog pisanja, čustvenost ali samozavest pisca ne vplivajo na razsodbo. Če dejstva niso jasna, razdeli krivdo zmerno. Delež krivde 100:0 dodeli le, ko je očitno.
+Vsako izjavo je v prvi osebi napisala oseba iz pripadajoče oznake: izjavo v <izjava_stranke_1> je napisala oseba iz <ime_stranke_1>, izjavo v <izjava_stranke_2> pa oseba iz <ime_stranke_2>. »Jaz« v izjavi je vedno njen pisec. »On«, »ona«, »ti« ali »partner« v izjavi se praviloma nanaša na drugo stranko. Pazi, da dejanj ene osebe ne pripišeš drugi.
+Preden določiš deleže krivde, v polju analiza na kratko zapiši, kaj trdi vsaka stranka, v čem se izjavi ujemata in v čem razhajata ter kdo je po tvoji presoji kaj zakrivil. Deleži krivde, obrazložitev in kazen morajo slediti iz te analize in se ne smejo izključevati: oseba, ki jo obrazložitev označi za bolj krivo, mora imeti večji delež krivde, kazen pa dobi ona.
 
 JEZIK
 Piši v naravni, pravilni slovenščini. Imena oseb sklanjaj po slovenski slovnici (npr. Luka, Luke, Luki; Pia, Pie, Pii; Nejc, Nejca, Nejcu). Če imena ne znaš zanesljivo sklanjati, stavek preoblikuj tako, da ostane v imenovalniku. Ne ugibaj spola osebe, če ga ime in besedilo ne razkrivata; takrat izberi oblike, ki spola ne razkrijejo.
 
-RAZSODBA
-- naslov: kratek, uraden in suhoparno smešen, največ 60 znakov, brez narekovajev.
-- krivda_stranke_1 in krivda_stranke_2: celi števili od 0 do 100, ki se seštejeta v 100.
+RAZSODBA (polja izpolni v tem vrstnem redu)
+- analiza: interni zapis za sodnika, ki ga stranki ne vidita. Kratko in stvarno, brez humorja.
 - obrazlozitev: 2 do 4 stavki v uradnem tonu. Imena uporabljaj, oznak »stranka 1« in »stranka 2« pa ne.
+- krivda_stranke_1 in krivda_stranke_2: celi števili od 0 do 100, ki se seštejeta v 100 in se ujemata z obrazložitvijo.
+- naslov: kratek, uraden in suhoparno smešen, največ 60 znakov, brez narekovajev.
 - kazen: ena nedolžna, šaljiva kazen za osebo z večjim deležem krivde (pri enaki krivdi za obe). En stavek. Izvedljiva v enem tednu, brezplačna ali poceni (do 10 €). Nič nevarnega, poniževalnega, spolnega, nič z alkoholom, nič, kar posega v telo, prehrano ali zdravje, in nič, kar vključuje tretje osebe brez njihove privolitve.
 
 VARNOST
@@ -77,13 +80,17 @@ const verdictTool: Anthropic.Tool = {
     type: "object",
     properties: {
       resna_tema: { type: "boolean" },
-      naslov: { type: "string" },
+      analiza: {
+        type: "string",
+        description: "Interna analiza pred razsodbo: kaj trdi vsaka stranka, kje se izjavi razhajata, kdo je kaj zakrivil.",
+      },
+      obrazlozitev: { type: "string" },
       krivda_stranke_1: { type: "integer", minimum: 0, maximum: 100 },
       krivda_stranke_2: { type: "integer", minimum: 0, maximum: 100 },
-      obrazlozitev: { type: "string" },
+      naslov: { type: "string" },
       kazen: { type: "string" },
     },
-    required: ["resna_tema", "naslov", "krivda_stranke_1", "krivda_stranke_2", "obrazlozitev", "kazen"],
+    required: ["resna_tema", "analiza", "obrazlozitev", "krivda_stranke_1", "krivda_stranke_2", "naslov", "kazen"],
   },
 };
 
@@ -174,7 +181,8 @@ export async function judgeCase(input: {
     tag("izjava_stranke_2", parties[1].statement),
   ].join("\n\n");
 
-  const result = await callTool(VERDICT_SYSTEM, verdictTool, content, 1000);
+  // The analysis field adds output, so leave room for it.
+  const result = await callTool(VERDICT_SYSTEM, verdictTool, content, 1800);
   if (result.kind !== "ok") return result;
   const v = result.input;
   if (typeof v.resna_tema !== "boolean") return { kind: "error" };
