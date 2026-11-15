@@ -4,10 +4,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, caseKeyStorageKey, storage } from "@/lib/client";
 import { LIMITS, charCount } from "@/lib/validation";
+import { Seal } from "./Seal";
 import { SeriousNotice } from "./SeriousNotice";
 
-type Fields = { nameA: string; nameB: string; topic: string; statement: string };
-type CreateResult = { serious: true } | { serious: false; id: string; key: string };
+type Fields = {
+  nameA: string;
+  nameB: string;
+  topic: string;
+  statement: string;
+};
+type CreateResult =
+  { serious: true } | { serious: false; id: string; key: string };
 
 const EMPTY: Fields = { nameA: "", nameB: "", topic: "", statement: "" };
 const DRAFT_KEY = "kjk:draft";
@@ -49,7 +56,10 @@ export function NewCase() {
     setBusy(true);
     setError(null);
     try {
-      const result = await api<CreateResult>("/api/cases", { method: "POST", body: JSON.stringify(fields) });
+      const result = await api<CreateResult>("/api/cases", {
+        method: "POST",
+        body: JSON.stringify(fields),
+      });
       storage.remove(DRAFT_KEY);
       if (result.serious) {
         setFields(EMPTY);
@@ -61,7 +71,11 @@ export function NewCase() {
       storage.set(caseKeyStorageKey(result.id), result.key);
       router.push(`/z/${result.id}#k=${result.key}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError("Nekaj je šlo narobe. Poskusi znova.", 0));
+      setError(
+        err instanceof ApiError
+          ? err
+          : new ApiError("Nekaj je šlo narobe. Poskusi znova.", 0),
+      );
       setBusy(false);
     }
   }
@@ -70,7 +84,11 @@ export function NewCase() {
     return (
       <div className="stack-lg">
         <SeriousNotice variant="new" />
-        <button type="button" className="btn btn-secondary" onClick={() => setSerious(false)}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setSerious(false)}
+        >
           Nazaj na začetek
         </button>
       </div>
@@ -78,14 +96,17 @@ export function NewCase() {
   }
 
   const statementLength = charCount(fields.statement.trim());
-  const invalid = (name: keyof Fields) => (error?.field === name ? true : undefined);
+  const invalid = (name: keyof Fields) =>
+    error?.field === name ? true : undefined;
 
   return (
     <div className="stack-lg">
-      <section className="stack">
+      <section className="hero">
+        <Seal center={["§"]} size={150} className="hero-seal" />
         <h1 className="display">Kdo je kriv?</h1>
         <p className="lede">
-          Vsak napiše svojo plat zgodbe. Sodnik prebere obe in razsodi. Smrtno resno, čeprav gre za posodo.
+          Vsak napiše svojo plat zgodbe. Sodnik prebere obe in razsodi. Smrtno
+          resno, čeprav gre za posodo.
         </p>
         <ol className="steps">
           <li>Opišeš prepir in dobiš povezavo.</li>
@@ -94,12 +115,15 @@ export function NewCase() {
         </ol>
       </section>
 
-      <hr className="divider" />
-
       <form className="form" onSubmit={submit} noValidate aria-busy={busy}>
-        <div className="row-2">
-          <div className="field">
-            <label className="label" htmlFor="nameA">
+        <div className="form-head">
+          <h2>Vloga</h2>
+          <span className="small">Vse izpolni vlagatelj</span>
+        </div>
+
+        <div className="doc">
+          <div className="doc-row is-field">
+            <label className="doc-label" htmlFor="nameA">
               Tvoje ime
             </label>
             <input
@@ -113,8 +137,8 @@ export function NewCase() {
               onChange={(e) => update("nameA", e.target.value)}
             />
           </div>
-          <div className="field">
-            <label className="label" htmlFor="nameB">
+          <div className="doc-row is-field">
+            <label className="doc-label" htmlFor="nameB">
               Ime druge osebe
             </label>
             <input
@@ -128,52 +152,64 @@ export function NewCase() {
               onChange={(e) => update("nameB", e.target.value)}
             />
           </div>
-        </div>
 
-        <div className="field">
-          <label className="label" htmlFor="topic">
-            Zadeva
-          </label>
-          <input
-            id="topic"
-            className="input"
-            autoComplete="off"
-            maxLength={LIMITS.topic}
-            placeholder="npr. Kdo bi moral pomiti posodo od sobote"
-            required
-            value={fields.topic}
-            aria-invalid={invalid("topic")}
-            aria-describedby="topic-hint"
-            onChange={(e) => update("topic", e.target.value)}
-          />
-          <p id="topic-hint" className="hint">
-            <span>To vidi tudi druga oseba.</span>
-            <span>
-              {charCount(fields.topic)}/{LIMITS.topic}
-            </span>
-          </p>
-        </div>
+          <div className="doc-row is-field">
+            <label className="doc-label" htmlFor="topic">
+              Zadeva
+            </label>
+            <div className="field">
+              <input
+                id="topic"
+                className="input"
+                autoComplete="off"
+                maxLength={LIMITS.topic}
+                placeholder="npr. Kdo bi moral pomiti posodo od sobote"
+                required
+                value={fields.topic}
+                aria-invalid={invalid("topic")}
+                aria-describedby="topic-hint"
+                onChange={(e) => update("topic", e.target.value)}
+              />
+              <p id="topic-hint" className="hint">
+                <span>To vidi tudi druga oseba.</span>
+                <span>
+                  {charCount(fields.topic)}/{LIMITS.topic}
+                </span>
+              </p>
+            </div>
+          </div>
 
-        <div className="field">
-          <label className="label" htmlFor="statement">
-            Tvoja plat zgodbe
-          </label>
-          <textarea
-            id="statement"
-            className="textarea"
-            maxLength={LIMITS.statement + 50}
-            required
-            value={fields.statement}
-            aria-invalid={invalid("statement")}
-            aria-describedby="statement-hint"
-            onChange={(e) => update("statement", e.target.value)}
-          />
-          <p id="statement-hint" className="hint">
-            <span>Druga oseba jo vidi šele z razsodbo.</span>
-            <span className={statementLength < LIMITS.statementMin || statementLength > LIMITS.statement ? "counter-low" : undefined}>
-              {statementLength}/{LIMITS.statement}
-            </span>
-          </p>
+          <div className="doc-row is-field">
+            <label className="doc-label" htmlFor="statement">
+              Tvoja plat zgodbe
+            </label>
+            <div className="field">
+              <textarea
+                id="statement"
+                className="textarea"
+                maxLength={LIMITS.statement + 50}
+                required
+                value={fields.statement}
+                aria-invalid={invalid("statement")}
+                aria-describedby="statement-hint"
+                onChange={(e) => update("statement", e.target.value)}
+              />
+              <p id="statement-hint" className="hint">
+                <span>Druga oseba jo vidi šele z razsodbo.</span>
+                <span
+                  className={
+                    (statementLength > 0 &&
+                      statementLength < LIMITS.statementMin) ||
+                    statementLength > LIMITS.statement
+                      ? "counter-low"
+                      : undefined
+                  }
+                >
+                  {statementLength}/{LIMITS.statement}
+                </span>
+              </p>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -182,7 +218,11 @@ export function NewCase() {
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+        <button
+          type="submit"
+          className="btn btn-primary btn-block"
+          disabled={busy}
+        >
           {busy ? "Sodnik pregleduje vlogo …" : "Vloži zadevo"}
         </button>
       </form>

@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CaseView } from "@/lib/cases";
-import { api, ApiError, caseKeyStorageKey, shareLink, storage } from "@/lib/client";
+import {
+  api,
+  ApiError,
+  caseKeyStorageKey,
+  shareLink,
+  storage,
+} from "@/lib/client";
 import { LIMITS, charCount } from "@/lib/validation";
 import { DeleteCase } from "./DeleteCase";
 import { SeriousNotice } from "./SeriousNotice";
@@ -25,12 +31,18 @@ export function CaseScreen({ id }: { id: string }) {
 
   const load = useCallback(async () => {
     try {
-      const headers: Record<string, string> = keyRef.current ? { "x-case-key": keyRef.current } : {};
+      const headers: Record<string, string> = keyRef.current
+        ? { "x-case-key": keyRef.current }
+        : {};
       const next = await api<CaseView>(`/api/cases/${id}`, { headers });
       setView(next);
       setLoadError(null);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err : new ApiError("Zadeve ni bilo mogoče naložiti.", 0));
+      setLoadError(
+        err instanceof ApiError
+          ? err
+          : new ApiError("Zadeve ni bilo mogoče naložiti.", 0),
+      );
     }
   }, [id]);
 
@@ -89,14 +101,22 @@ export function CaseScreen({ id }: { id: string }) {
       return (
         <div className="stack">
           <p className="kicker">Napaka</p>
-          <h1 className="title">{loadError.status === 404 ? "Zadeve ni mogoče najti." : "Zadeve ni bilo mogoče naložiti."}</h1>
+          <h1 className="title">
+            {loadError.status === 404
+              ? "Zadeve ni mogoče najti."
+              : "Zadeve ni bilo mogoče naložiti."}
+          </h1>
           <p className="lede">{loadError.message}</p>
           {loadError.status === 404 ? (
             <Link href="/" className="btn btn-secondary">
               Vloži novo zadevo
             </Link>
           ) : (
-            <button type="button" className="btn btn-secondary" onClick={() => void load()}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void load()}
+            >
               Poskusi znova
             </button>
           )}
@@ -115,7 +135,7 @@ export function CaseScreen({ id }: { id: string }) {
   return (
     <div className="stack-lg">
       <header className="case-head">
-        <p className="kicker">Zadeva št. {id.slice(0, 6).toUpperCase()}</p>
+        <p className="case-no">Zadeva št. {id.slice(0, 6).toUpperCase()}</p>
         <h1 className="title">{view.topic}</h1>
         <p className="parties">
           <span className="muted">Stranki:</span> {view.nameA} in {view.nameB}
@@ -127,7 +147,10 @@ export function CaseScreen({ id }: { id: string }) {
       ) : view.status === "awaiting" && view.role === "owner" ? (
         <OwnerWaiting view={view} caseKey={key} onDeleted={onDeleted} />
       ) : view.status === "awaiting" ? (
-        <RespondForm view={view} onAnswered={(k, v) => (adoptKey(k), setView(v))} />
+        <RespondForm
+          view={view}
+          onAnswered={(k, v) => (adoptKey(k), setView(v))}
+        />
       ) : view.status === "ready" && view.error ? (
         <VerdictFailed view={view} caseKey={key} onUpdate={setView} />
       ) : (
@@ -191,7 +214,9 @@ function OwnerWaiting({
       await navigator.clipboard.writeText(ownUrl);
       setShareState("Tvoja zasebna povezava je kopirana. Shrani jo zase.");
     } catch {
-      setShareState("Kopiranje ni uspelo. Povezavo shrani tako, da si zaznamuješ to stran.");
+      setShareState(
+        "Kopiranje ni uspelo. Povezavo shrani tako, da si zaznamuješ to stran.",
+      );
     }
   }
 
@@ -200,14 +225,25 @@ function OwnerWaiting({
       <section className="stack">
         <h2 className="kicker kicker-accent">Zadeva je vložena</h2>
         <p className="lede">
-          Pošlji povezavo osebi, s katero se prepirata. Tvoje izjave pred razsodbo ne bo videla.
+          Pošlji povezavo osebi, s katero se prepirata. Tvoje izjave pred
+          razsodbo ne bo videla.
         </p>
-        <button type="button" className="btn btn-primary btn-block" onClick={share} disabled={!partnerUrl}>
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          onClick={share}
+          disabled={!partnerUrl}
+        >
           Deli povezavo
         </button>
         <label className="field">
           <span className="small muted">Povezava za drugo osebo</span>
-          <input className="input share-url" readOnly value={partnerUrl} onFocus={(e) => e.currentTarget.select()} />
+          <input
+            className="input share-url"
+            readOnly
+            value={partnerUrl}
+            onFocus={(e) => e.currentTarget.select()}
+          />
         </label>
         {shareState && (
           <p className="small" role="status">
@@ -222,15 +258,26 @@ function OwnerWaiting({
           Čakamo, da {view.nameB} odda svojo plat. Razsodba se tu prikaže sama.
         </p>
         <p className="small muted">
-          Ta stran ima v naslovu tvoj zasebni ključ. Z njim se vrneš k zadevi in jo lahko izbrišeš. Ne deli je.
+          Ta stran ima v naslovu tvoj zasebni ključ. Z njim se vrneš k zadevi in
+          jo lahko izbrišeš. Ne deli je.
         </p>
-        <button type="button" className="btn btn-secondary" onClick={copyOwn} disabled={!ownUrl}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={copyOwn}
+          disabled={!ownUrl}
+        >
           Kopiraj mojo zasebno povezavo
         </button>
       </div>
 
       <OwnStatement text={view.ownStatement} />
-      <DeleteCase id={view.id} caseKey={caseKey} label="Umakni zadevo" onDeleted={onDeleted} />
+      <DeleteCase
+        id={view.id}
+        caseKey={caseKey}
+        label="Umakni zadevo"
+        onDeleted={onDeleted}
+      />
     </div>
   );
 }
@@ -258,14 +305,21 @@ function RespondForm({
     setBusy(true);
     setError(null);
     try {
-      const result = await api<{ key: string; view: CaseView }>(`/api/cases/${view.id}/response`, {
-        method: "POST",
-        body: JSON.stringify({ statement: text }),
-      });
+      const result = await api<{ key: string; view: CaseView }>(
+        `/api/cases/${view.id}/response`,
+        {
+          method: "POST",
+          body: JSON.stringify({ statement: text }),
+        },
+      );
       storage.remove(draftKey);
       onAnswered(result.key, result.view);
     } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError("Nekaj je šlo narobe. Poskusi znova.", 0));
+      setError(
+        err instanceof ApiError
+          ? err
+          : new ApiError("Nekaj je šlo narobe. Poskusi znova.", 0),
+      );
       setBusy(false);
     }
   }
@@ -277,8 +331,8 @@ function RespondForm({
       <div className="stack">
         <h2 className="kicker kicker-accent">Na vrsti si ti</h2>
         <p className="lede">
-          {view.nameA} te kliče pred sodišče. Napiši svojo plat zgodbe. Izjave druge strani ne vidiš, pokaže se
-          šele z razsodbo.
+          {view.nameA} te kliče pred sodišče. Napiši svojo plat zgodbe. Izjave
+          druge strani ne vidiš, pokaže se šele z razsodbo.
         </p>
       </div>
       <div className="field">
@@ -299,7 +353,13 @@ function RespondForm({
         />
         <p id="reply-hint" className="hint">
           <span>Ko oddaš, sodnik takoj razsodi.</span>
-          <span className={length < LIMITS.statementMin || length > LIMITS.statement ? "counter-low" : undefined}>
+          <span
+            className={
+              length < LIMITS.statementMin || length > LIMITS.statement
+                ? "counter-low"
+                : undefined
+            }
+          >
             {length}/{LIMITS.statement}
           </span>
         </p>
@@ -309,7 +369,11 @@ function RespondForm({
           {error.message}
         </div>
       )}
-      <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+      <button
+        type="submit"
+        className="btn btn-primary btn-block"
+        disabled={busy}
+      >
         {busy ? "Sodnik bere spis …" : "Oddaj in zahtevaj razsodbo"}
       </button>
     </form>
@@ -323,7 +387,9 @@ function Judging({ view }: { view: CaseView }) {
         <span className="status-dot" aria-hidden="true" />
         Obe izjavi sta prispeli. Sodnik bere spis.
       </p>
-      <p className="small muted">Razsodba se tu prikaže sama, običajno v nekaj sekundah.</p>
+      <p className="small muted">
+        Razsodba se tu prikaže sama, običajno v nekaj sekundah.
+      </p>
       <OwnStatement text={view.ownStatement} />
     </div>
   );
@@ -352,7 +418,11 @@ function VerdictFailed({
       });
       onUpdate(next);
     } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError("Nekaj je šlo narobe. Poskusi znova.", 0));
+      setError(
+        err instanceof ApiError
+          ? err
+          : new ApiError("Nekaj je šlo narobe. Poskusi znova.", 0),
+      );
     } finally {
       setBusy(false);
     }
@@ -372,11 +442,18 @@ function VerdictFailed({
         </div>
       )}
       {isParty ? (
-        <button type="button" className="btn btn-primary btn-block" onClick={retry} disabled={busy}>
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          onClick={retry}
+          disabled={busy}
+        >
           {busy ? "Sodnik bere spis …" : "Poskusi znova"}
         </button>
       ) : (
-        <p className="small muted">Ponovni poskus lahko sproži ena od strank v zadevi.</p>
+        <p className="small muted">
+          Ponovni poskus lahko sproži ena od strank v zadevi.
+        </p>
       )}
       <OwnStatement text={view.ownStatement} />
     </div>

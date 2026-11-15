@@ -31,12 +31,12 @@ function loadFonts() {
 }
 
 const C = {
-  bg: "#F4F2EE",
-  ink: "#17171A",
-  muted: "#66646B",
-  line: "#D6D2CA",
-  accent: "#B23A1E",
-  quiet: "#3D3C42",
+  bg: "#F7F7F4",
+  ink: "#1A1B22",
+  muted: "#72747E",
+  line: "#D3D4D8",
+  accent: "#4338C2",
+  quiet: "#1A1B22",
 };
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

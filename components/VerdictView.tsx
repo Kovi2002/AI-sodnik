@@ -5,6 +5,7 @@ import type { CaseView } from "@/lib/cases";
 import { api, ApiError, shareLink } from "@/lib/client";
 import { LIMITS } from "@/lib/validation";
 import { DeleteCase } from "./DeleteCase";
+import { Seal } from "./Seal";
 
 const REVEAL_DELAY_MS = 250;
 const REVEAL_MS = 1400;
@@ -30,8 +31,19 @@ function useRevealProgress() {
   return progress;
 }
 
-function BlameMeter({ nameA, nameB, blameA, blameB }: { nameA: string; nameB: string; blameA: number; blameB: number }) {
-  const p = useRevealProgress();
+function BlameMeter({
+  nameA,
+  nameB,
+  blameA,
+  blameB,
+  p,
+}: {
+  nameA: string;
+  nameB: string;
+  blameA: number;
+  blameB: number;
+  p: number;
+}) {
   const done = p >= 1;
   const aGuilty = blameA > blameB;
   const bGuilty = blameB > blameA;
@@ -60,11 +72,18 @@ function BlameMeter({ nameA, nameB, blameA, blameB }: { nameA: string; nameB: st
         </div>
       </div>
       <div className="meter-bar" aria-hidden="true">
-        <div className={`meter-fill left${done && aGuilty ? " is-guilty" : ""}`} style={{ width: `calc(${blameA * p}% - 2px)` }} />
-        <div className={`meter-fill right${done && bGuilty ? " is-guilty" : ""}`} style={{ width: `calc(${blameB * p}% - 2px)` }} />
+        <div
+          className={`meter-fill left${done && aGuilty ? " is-guilty" : ""}`}
+          style={{ width: `calc(${blameA * p}% - 2px)` }}
+        />
+        <div
+          className={`meter-fill right${done && bGuilty ? " is-guilty" : ""}`}
+          style={{ width: `calc(${blameB * p}% - 2px)` }}
+        />
       </div>
-      <p className="meter-caption" aria-hidden="true">
-        Delež krivde
+      <p className="meter-foot" aria-hidden="true">
+        <span>Delež krivde</span>
+        <span>Razsodba je pravnomočna.</span>
       </p>
     </div>
   );
@@ -84,7 +103,11 @@ function ImageButton({ id }: { id: string }) {
       const file = new File([blob], "razsodba.png", { type: "image/png" });
       // Phones get the share sheet (straight to Instagram etc.); desktops get a plain download.
       const touch = window.matchMedia("(pointer: coarse)").matches;
-      if (touch && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+      if (
+        touch &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] })
+      ) {
         try {
           await navigator.share({ files: [file], title: "Razsodba" });
           return;
@@ -110,7 +133,12 @@ function ImageButton({ id }: { id: string }) {
 
   return (
     <>
-      <button type="button" className="btn btn-primary" onClick={make} disabled={busy}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={make}
+        disabled={busy}
+      >
         {busy ? "Pripravljam sliko …" : "Slika za objavo"}
       </button>
       {message && (
@@ -139,7 +167,11 @@ function ReportForm({ id }: { id: string }) {
 
   if (!open) {
     return (
-      <button type="button" className="btn btn-link" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="btn btn-link"
+        onClick={() => setOpen(true)}
+      >
         Prijavi razsodbo
       </button>
     );
@@ -150,10 +182,17 @@ function ReportForm({ id }: { id: string }) {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/cases/${id}/report`, { method: "POST", body: JSON.stringify({ reason }) });
+      await api(`/api/cases/${id}/report`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
       setSent(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Prijava ni uspela. Poskusi znova.");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Prijava ni uspela. Poskusi znova.",
+      );
     } finally {
       setBusy(false);
     }
@@ -187,7 +226,12 @@ function ReportForm({ id }: { id: string }) {
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Pošiljam …" : "Pošlji prijavo"}
         </button>
-        <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)} disabled={busy}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setOpen(false)}
+          disabled={busy}
+        >
           Prekliči
         </button>
       </div>
@@ -205,6 +249,7 @@ export function VerdictView({
   onDeleted: () => void;
 }) {
   const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const progress = useRevealProgress();
   const verdict = view.verdict!;
   const nameA = view.nameA ?? "";
   const nameB = view.nameB ?? "";
@@ -227,22 +272,36 @@ export function VerdictView({
   return (
     <article className="verdict" aria-labelledby="verdict-title">
       <div className="verdict-head">
-        <p className="kicker kicker-accent">Razsodba</p>
+        <Seal
+          center={["RAZSOJENO"]}
+          size={128}
+          className={`verdict-seal${progress >= 1 ? " is-stamped" : ""}`}
+          title="Razsojeno"
+        />
+        <p className="rubric rubric-stamp">Izrek</p>
         <h2 id="verdict-title" className="title">
           {verdict.title}
         </h2>
       </div>
 
-      <BlameMeter nameA={nameA} nameB={nameB} blameA={verdict.blameA} blameB={verdict.blameB} />
+      <BlameMeter
+        nameA={nameA}
+        nameB={nameB}
+        blameA={verdict.blameA}
+        blameB={verdict.blameB}
+        p={progress}
+      />
 
-      <section className="stack" aria-label="Obrazložitev">
-        <p className="kicker">Obrazložitev</p>
-        <p className="reasoning">{verdict.reasoning}</p>
+      <section className="verdict-section" aria-label="Obrazložitev">
+        <p className="rubric">Obrazložitev</p>
+        <p className="judgment">{verdict.reasoning}</p>
       </section>
 
       <section className="sentence" aria-label="Kazen">
-        <p className="kicker kicker-accent">Kazen</p>
-        <p>{verdict.punishment}</p>
+        <span className="sentence-mark" aria-hidden="true">
+          Kazen
+        </span>
+        <p className="judgment">{verdict.punishment}</p>
       </section>
 
       <div className="actions actions-row">
@@ -258,7 +317,7 @@ export function VerdictView({
       )}
 
       <section aria-label="Izjavi strank">
-        <p className="kicker" style={{ marginBottom: 8 }}>
+        <p className="rubric" style={{ marginBottom: 10 }}>
           Spis
         </p>
         <details className="disclosure">
