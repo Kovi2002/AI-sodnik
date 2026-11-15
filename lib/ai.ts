@@ -12,15 +12,27 @@ export type Verdict = {
 
 export type AiResult<T> = { kind: "ok"; value: T } | { kind: "serious" } | { kind: "error" };
 
-const DEFAULT_MODEL = "claude-haiku-5-5";
+const DEFAULT_MODEL = "claude-sonnet-5-5";
+type Effort = NonNullable<Anthropic.OutputConfig["effort"]>;
+const EFFORTS: readonly Effort[] = ["low", "medium", "high", "xhigh", "max"];
 
 let client: Anthropic | undefined;
 
 function getClient(): Anthropic {
   if (!process.env.ANTHROPIC_API_KEY) throw new ConfigError("ANTHROPIC_API_KEY is not set");
   // The SDK also honours ANTHROPIC_BASE_URL from the environment.
-  client ??= new Anthropic({ timeout: 45_000, maxRetries: 1 });
+  client ??= new Anthropic({ timeout: 90_000, maxRetries: 1 });
   return client;
+}
+
+function model(): string {
+  return process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+}
+
+/** How hard the model thinks before it answers; ANTHROPIC_EFFORT overrides the per-call default. */
+function effort(fallback: Effort): Effort {
+  const value = process.env.ANTHROPIC_EFFORT as Effort | undefined;
+  return value && EFFORTS.includes(value) ? value : fallback;
 }
 
 const SERIOUS_TOPICS = `Resne teme so: nasilje (tudi grožnje z nasiljem ali omenjanje udarcev, porivanja, uničevanja stvari v jezi), grožnje, zloraba (fizična, psihična, ekonomska), nadzor ali zalezovanje partnerja (branje sporočil brez dovoljenja, sledenje lokaciji, prepovedovanje stikov), samomor, samopoškodovanje, motnje hranjenja, odvisnost (alkohol, droge, igre na srečo), spolnost, škodljivi položaji z mladoletnimi, huda bolezen, smrt bližnjega in kazniva dejanja.
@@ -32,96 +44,112 @@ const SCREEN_SYSTEM = `Si varnostni pregledovalec za zabavno aplikacijo »Kdo je
 Tvoja edina naloga je oceniti, ali vnos vsebuje resno temo, ki ni primerna za šalo.
 ${SERIOUS_TOPICS}
 ${DATA_RULES}
-Odgovori izključno s klicem orodja oceni_vnos.`;
+Odgovori izključno z JSON po zahtevani shemi.`;
 
 const VERDICT_SYSTEM = `Si sodnik v zabavni aplikaciji »Kdo je kriv?«. Dve osebi, najpogosteje par, sta ti predložili vsakdanji prepir. Vsaka je napisala svojo plat zgodbe, ne da bi videla izjavo druge.
 
 TON
 Si suhoparno uraden, kot sodnik, ki se smrtno resno loti prepira o umazani posodi. Humor izhaja iz kontrasta med uradnim jezikom in banalnostjo zadeve. Šališ se iz položaja, nikoli iz človeka. Brez žalitev videza, zdravja, telesa, izvora, vere ali spolne usmerjenosti. Ne uporabljaj kletvic.
 
+KDO JE KAJ NAPISAL
+Izjavo v <izjava_stranke_1> je v prvi osebi napisala oseba iz <ime_stranke_1>, izjavo v <izjava_stranke_2> pa oseba iz <ime_stranke_2>. »Jaz« v izjavi je vedno njen pisec. »On«, »ona«, »ti« ali »partner« v izjavi se praviloma nanaša na drugo stranko. Preden razsodiš, si razjasni, kdo trdi kaj, in dejanj ene osebe nikoli ne pripiši drugi.
+
 SOJENJE
-Sodi po vsebini argumentov: kdo je kaj obljubil, kaj je razumno pričakovati, kdo je prispeval k zapletu. Vrstni red izjav, njuna dolžina, slog pisanja, čustvenost ali samozavest pisca ne vplivajo na razsodbo. Če dejstva niso jasna, razdeli krivdo zmerno. Delež krivde 100:0 dodeli le, ko je očitno.
-Vsako izjavo je v prvi osebi napisala oseba iz pripadajoče oznake: izjavo v <izjava_stranke_1> je napisala oseba iz <ime_stranke_1>, izjavo v <izjava_stranke_2> pa oseba iz <ime_stranke_2>. »Jaz« v izjavi je vedno njen pisec. »On«, »ona«, »ti« ali »partner« v izjavi se praviloma nanaša na drugo stranko. Pazi, da dejanj ene osebe ne pripišeš drugi.
-Preden določiš deleže krivde, v polju analiza na kratko zapiši, kaj trdi vsaka stranka, v čem se izjavi ujemata in v čem razhajata ter kdo je po tvoji presoji kaj zakrivil. Deleži krivde, obrazložitev in kazen morajo slediti iz te analize in se ne smejo izključevati: oseba, ki jo obrazložitev označi za bolj krivo, mora imeti večji delež krivde, kazen pa dobi ona.
+Sodi po vsebini argumentov: kdo je kaj obljubil, kaj je razumno pričakovati, kdo je prispeval k zapletu. Vrstni red izjav, njuna dolžina, slog pisanja, čustvenost ali samozavest pisca ne vplivajo na razsodbo.
+Opiraj se samo na to, kar je v izjavah zapisano. Ničesar si ne izmišljuj in nobeni stranki ne pripisuj trditev, ki jih ni dala. Kadar si izjavi nasprotujeta in iz besedila ni razvidno, katera drži, to naravnost zapiši in krivdo razdeli zmerno. Če ena stranka v svoji izjavi sama prizna dejanje, ki je zaplet povzročilo, to šteje več kot njeno obtoževanje druge. Delež krivde 100:0 dodeli le, ko je očitno.
+Razsodba mora biti enotna celota: oseba, ki jo obrazložitev označi za bolj krivo, mora imeti večji delež krivde in dobi kazen. Obrazložitev ne sme trditi nečesa, čemur deleži nasprotujejo.
 
 JEZIK
-Piši v naravni, pravilni slovenščini. Imena oseb sklanjaj po slovenski slovnici (npr. Luka, Luke, Luki; Pia, Pie, Pii; Nejc, Nejca, Nejcu). Če imena ne znaš zanesljivo sklanjati, stavek preoblikuj tako, da ostane v imenovalniku. Ne ugibaj spola osebe, če ga ime in besedilo ne razkrivata; takrat izberi oblike, ki spola ne razkrijejo.
+Piši v naravni, pravilni slovenščini, kot bi jo napisal lektoriran uradni dopis. Imena oseb sklanjaj po slovenski slovnici (npr. Luka, Luke, Luki; Pia, Pie, Pii; Nejc, Nejca, Nejcu). Glagolske oblike uskladi s spolom osebe (Rok je zamudil, Ana je zamudila). Če imena ne znaš zanesljivo sklanjati, stavek preoblikuj tako, da ostane v imenovalniku. Ne ugibaj spola osebe, če ga ime in besedilo ne razkrivata; takrat izberi oblike, ki spola ne razkrijejo.
 
-RAZSODBA (polja izpolni v tem vrstnem redu)
-- analiza: interni zapis za sodnika, ki ga stranki ne vidita. Kratko in stvarno, brez humorja.
-- obrazlozitev: 2 do 4 stavki v uradnem tonu. Imena uporabljaj, oznak »stranka 1« in »stranka 2« pa ne.
+RAZSODBA
+- obrazlozitev: 2 do 4 stavki v uradnem tonu. Najprej povzemi ključno dejstvo, nato pojasni, zakaj je krivda razdeljena tako, kot je. Imena uporabljaj, oznak »stranka 1« in »stranka 2« pa ne.
 - krivda_stranke_1 in krivda_stranke_2: celi števili od 0 do 100, ki se seštejeta v 100 in se ujemata z obrazložitvijo.
 - naslov: kratek, uraden in suhoparno smešen, največ 60 znakov, brez narekovajev.
-- kazen: ena nedolžna, šaljiva kazen za osebo z večjim deležem krivde (pri enaki krivdi za obe). En stavek. Izvedljiva v enem tednu, brezplačna ali poceni (do 10 €). Nič nevarnega, poniževalnega, spolnega, nič z alkoholom, nič, kar posega v telo, prehrano ali zdravje, in nič, kar vključuje tretje osebe brez njihove privolitve.
+- kazen: ena nedolžna, šaljiva kazen za osebo z večjim deležem krivde (pri enaki krivdi za obe). En stavek z enim samim, konkretnim in preprosto izvedljivim dejanjem, po možnosti povezanim s predmetom spora. Izvedljiva v enem tednu, brezplačna ali poceni (do 10 €). Nič nevarnega, poniževalnega, spolnega, nič z alkoholom, nič, kar posega v telo, prehrano ali zdravje, in nič, kar vključuje tretje osebe brez njihove privolitve.
 
 VARNOST
 ${SERIOUS_TOPICS}
-Če je katerakoli izjava ali zadeva resna, nastavi resna_tema na true, ostala besedilna polja pusti prazna in krivdi nastavi na 0. Takrat ne izrekaj razsodbe in se ne šali.
+Če je katerakoli izjava ali zadeva resna, nastavi resna_tema na true, besedilna polja pusti prazna in obe krivdi nastavi na 0. Takrat ne izrekaj razsodbe in se ne šali.
 ${DATA_RULES}
 
-Odgovori izključno s klicem orodja izreci_razsodbo.`;
+Odgovori izključno z JSON po zahtevani shemi.`;
 
-const screenTool: Anthropic.Tool = {
-  name: "oceni_vnos",
-  description: "Zabeleži, ali vnos vsebuje resno temo.",
-  input_schema: {
+// Structured outputs work on every current model, including those that no longer accept a forced tool call.
+const screenFormat: Anthropic.JSONOutputFormat = {
+  type: "json_schema",
+  schema: {
     type: "object",
     properties: {
       resna_tema: { type: "boolean", description: "true, če vnos vsebuje resno temo ali je v dvomu." },
     },
     required: ["resna_tema"],
+    additionalProperties: false,
   },
 };
 
-const verdictTool: Anthropic.Tool = {
-  name: "izreci_razsodbo",
-  description: "Izreče razsodbo v vsakdanjem prepiru ali zabeleži, da je tema resna.",
-  input_schema: {
+// Property order is the order the model writes them in: the reasoning comes before the numbers,
+// so the percentages follow from the explanation rather than the other way round.
+const verdictFormat: Anthropic.JSONOutputFormat = {
+  type: "json_schema",
+  schema: {
     type: "object",
     properties: {
       resna_tema: { type: "boolean" },
-      analiza: {
-        type: "string",
-        description: "Interna analiza pred razsodbo: kaj trdi vsaka stranka, kje se izjavi razhajata, kdo je kaj zakrivil.",
-      },
       obrazlozitev: { type: "string" },
-      krivda_stranke_1: { type: "integer", minimum: 0, maximum: 100 },
-      krivda_stranke_2: { type: "integer", minimum: 0, maximum: 100 },
+      krivda_stranke_1: { type: "integer", description: "Od 0 do 100." },
+      krivda_stranke_2: { type: "integer", description: "Od 0 do 100; skupaj s krivda_stranke_1 da 100." },
       naslov: { type: "string" },
       kazen: { type: "string" },
     },
-    required: ["resna_tema", "analiza", "obrazlozitev", "krivda_stranke_1", "krivda_stranke_2", "naslov", "kazen"],
+    required: ["resna_tema", "obrazlozitev", "krivda_stranke_1", "krivda_stranke_2", "naslov", "kazen"],
+    additionalProperties: false,
   },
 };
 
 const tag = (name: string, text: string) => `<${name}>\n${neutralize(text)}\n</${name}>`;
 
-type ToolCall = { kind: "ok"; input: Record<string, unknown> } | { kind: "serious" } | { kind: "error" };
+type Structured = { kind: "ok"; data: Record<string, unknown> } | { kind: "serious" } | { kind: "error" };
 
-async function callTool(system: string, tool: Anthropic.Tool, content: string, maxTokens: number): Promise<ToolCall> {
+async function callStructured(
+  system: string,
+  format: Anthropic.JSONOutputFormat,
+  content: string,
+  options: { maxTokens: number; effort: Effort },
+): Promise<Structured> {
   const anthropic = getClient();
   try {
     const message = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
-      max_tokens: maxTokens,
+      model: model(),
+      max_tokens: options.maxTokens,
       system,
-      tools: [tool],
-      tool_choice: { type: "tool", name: tool.name },
       messages: [{ role: "user", content }],
+      output_config: { format, effort: options.effort },
     });
     // A refusal is treated exactly like a serious topic.
     if (message.stop_reason === "refusal") return { kind: "serious" };
-    const block = message.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === tool.name,
-    );
-    if (!block || !block.input || typeof block.input !== "object") {
-      console.error(`ai: no tool call in response (stop_reason=${message.stop_reason})`);
+    if (message.stop_reason === "max_tokens") {
+      console.error("ai: response cut off at max_tokens");
       return { kind: "error" };
     }
-    return { kind: "ok", input: block.input as Record<string, unknown> };
+    const text = message.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
+    if (!text) {
+      console.error(`ai: no text in response (stop_reason=${message.stop_reason})`);
+      return { kind: "error" };
+    }
+    try {
+      const data: unknown = JSON.parse(text);
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        return { kind: "ok", data: data as Record<string, unknown> };
+      }
+    } catch {
+      // fall through
+    }
+    console.error("ai: response is not a JSON object");
+    return { kind: "error" };
   } catch (err) {
     if (err instanceof Anthropic.APIError) {
-      console.error(`ai: api error status=${err.status ?? "none"} type=${err.name}`);
+      console.error(`ai: api error status=${err.status ?? "none"} type=${err.name} message=${err.message}`);
     } else {
       console.error("ai: call failed:", err instanceof Error ? err.name : "unknown");
     }
@@ -142,10 +170,13 @@ export async function screenNewCase(input: {
     tag("ime_druge_osebe", input.nameB),
     tag("izjava_vlagatelja", input.statement),
   ].join("\n\n");
-  const result = await callTool(SCREEN_SYSTEM, screenTool, content, 200);
+  const result = await callStructured(SCREEN_SYSTEM, screenFormat, content, {
+    maxTokens: 2000,
+    effort: effort("low"),
+  });
   if (result.kind !== "ok") return result;
-  if (typeof result.input.resna_tema !== "boolean") return { kind: "error" };
-  return result.input.resna_tema ? { kind: "serious" } : { kind: "ok", value: null };
+  if (typeof result.data.resna_tema !== "boolean") return { kind: "error" };
+  return result.data.resna_tema ? { kind: "serious" } : { kind: "ok", value: null };
 }
 
 function cleanString(value: unknown, max: number): string | null {
@@ -181,10 +212,13 @@ export async function judgeCase(input: {
     tag("izjava_stranke_2", parties[1].statement),
   ].join("\n\n");
 
-  // The analysis field adds output, so leave room for it.
-  const result = await callTool(VERDICT_SYSTEM, verdictTool, content, 1800);
+  // max_tokens also covers the model's internal thinking, so it is generous.
+  const result = await callStructured(VERDICT_SYSTEM, verdictFormat, content, {
+    maxTokens: 6000,
+    effort: effort("medium"),
+  });
   if (result.kind !== "ok") return result;
-  const v = result.input;
+  const v = result.data;
   if (typeof v.resna_tema !== "boolean") return { kind: "error" };
   if (v.resna_tema) return { kind: "serious" };
 

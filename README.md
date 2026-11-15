@@ -17,7 +17,7 @@ Aplikacija ne daje pravnih nasvetov. Besedilo obdela Claude API (Anthropic). Zad
 
 - Next.js 16 (App Router) in TypeScript
 - PostgreSQL prek paketa `pg`; tabele se ustvarijo samodejno ob prvi uporabi
-- Anthropic SDK, privzeti model `claude-haiku-5-5`, odgovor s prisiljenim klicem orodja
+- Anthropic SDK, privzeti model `claude-sonnet-5-5`, odgovor kot JSON po shemi (structured outputs), zato deluje na vseh trenutnih modelih
 - Slika razsodbe prek `next/og`; pisave IBM Plex (licenca OFL) so v `assets/fonts`, zato se č, š in ž izpišejo pravilno
 
 ## Lokalni zagon
@@ -47,7 +47,8 @@ npm start                       # produkcijski strežnik na PORT (privzeto 3000)
 | `DATABASE_URL` | da | Povezava do PostgreSQL. |
 | `ANTHROPIC_API_KEY` | da | Ključ za Claude API. Uporablja se samo na strežniku. |
 | `IP_SALT` | da | Dolg naključen niz. IP naslovi se shranijo le kot zgoščena vrednost s to soljo. Ustvariš ga npr. z `openssl rand -hex 32`. |
-| `ANTHROPIC_MODEL` | ne | Drug model. Model mora podpirati prisiljeni `tool_choice` (`claude-haiku-5-5` ga podpira, Claude Opus 5.5 in Sonnet 5.5 ne). |
+| `ANTHROPIC_MODEL` | ne | Drug model, npr. `claude-haiku-5-5` (ceneje, a manj zanesljive obrazložitve) ali `claude-opus-5-5`. |
+| `ANTHROPIC_EFFORT` | ne | Koliko naj model razmišlja: `low`, `medium`, `high`. Privzeto `medium` za razsodbo in `low` za varnostni pregled. |
 | `IP_DAILY_LIMIT` | ne | Največ oddaj na IP na dan, privzeto 15. |
 | `AI_DAILY_LIMIT` | ne | Največ klicev AI na dan za vso aplikacijo, privzeto 200. |
 
